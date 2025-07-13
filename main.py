@@ -1,11 +1,12 @@
+from fastapi import FastAPI, Request
+import uvicorn
 import os
 import requests
-from fastapi import FastAPI, Request
-from fastapi.responses import JSONResponse
+from generate_video import generate_video
 
 app = FastAPI()
 
-RUNWAY_API_KEY = os.getenv("RUNWAY_API_KEY")
+LINE_CHANNEL_ACCESS_TOKEN = os.getenv("LINE_CHANNEL_ACCESS_TOKEN")
 
 @app.get("/")
 def root():
@@ -13,25 +14,19 @@ def root():
 
 @app.post("/webhook")
 async def webhook(request: Request):
-    data = await request.json()
-    print("👀 LINEから受信したデータ：", data)
+    body = await request.json()
 
-    # テキストメッセージを抽出
-    text = data["events"][0]["message"]["text"]
+    # LINEからのメッセージテキスト取得
+    try:
+        user_message = body["events"][0]["message"]["text"]
+        reply_token = body["events"][0]["replyToken"]
+    except Exception as e:
+        print("Invalid LINE message format:", e)
+        return {"status": "error"}
 
-    # Runway APIを叩く（サンプルエンドポイント／あとで本物と差し替える）
-    headers = {
-        "Authorization": f"Bearer {RUNWAY_API_KEY}",
-        "Content-Type": "application/json"
-    }
+    # Runway APIで動画生成
+    result = generate_video(user_message)
 
-    payload = {
-        "prompt": text,
-        "num_frames": 48,  # 例：2秒間の動画（24fps × 2）
-        "fps": 24
-    }
-
-    response = requests.post("https://api.runwayml.com/v1/your-endpoint", json=payload, headers=headers)
-    print("🎬 Runwayからのレスポンス：", response.json())
-
-    return JSONResponse(content={"status": "Runway request sent!"})
+    if result and "output" in result:
+        video_url = result["output"]["url"]  # 実際のキー名はモデルによって変わる
+        rep
