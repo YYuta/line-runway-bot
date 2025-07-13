@@ -2,7 +2,7 @@ import os
 import requests
 
 RUNWAY_API_KEY = os.getenv("RUNWAY_API_KEY")
-API_URL = "https://api.runwayml.com/v1/inference/your-model-name"  # あとで実際のモデル名に書き換えてね
+API_URL = "https://api.runwayml.com/v1/image_to_video"  # あとで実際のモデル名に書き換えてね
 
 def generate_video(prompt: str):
     headers = {
