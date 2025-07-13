@@ -1,11 +1,11 @@
-from fastapi import FastAPI, Request
-import httpx
 import os
+import requests
+from fastapi import FastAPI, Request
+from fastapi.responses import JSONResponse
 
 app = FastAPI()
 
-# .env からトークンを読み込む方法（環境変数で管理してるなら）
-LINE_CHANNEL_ACCESS_TOKEN = os.getenv("LINE_CHANNEL_ACCESS_TOKEN")
+RUNWAY_API_KEY = os.getenv("RUNWAY_API_KEY")
 
 @app.get("/")
 def root():
@@ -13,42 +13,25 @@ def root():
 
 @app.post("/webhook")
 async def webhook(request: Request):
-    body = await request.json()
-    print("✅ LINEからのリクエストを受信！")
-    print(body)
+    data = await request.json()
+    print("👀 LINEから受信したデータ：", data)
 
-    # イベントが含まれているかチェック
-    if "events" not in body:
-        return {"status": "no events"}
+    # テキストメッセージを抽出
+    text = data["events"][0]["message"]["text"]
 
-    for event in body["events"]:
-        # メッセージタイプかどうか確認
-        if event["type"] == "message" and event["message"]["type"] == "text":
-            user_text = event["message"]["text"]
-            reply_token = event["replyToken"]
+    # Runway APIを叩く（サンプルエンドポイント／あとで本物と差し替える）
+    headers = {
+        "Authorization": f"Bearer {RUNWAY_API_KEY}",
+        "Content-Type": "application/json"
+    }
 
-            # とりあえずオウム返ししてみる！
-            reply_message = {
-                "type": "text",
-                "text": f"あなたはこう言いました：{user_text}"
-            }
+    payload = {
+        "prompt": text,
+        "num_frames": 48,  # 例：2秒間の動画（24fps × 2）
+        "fps": 24
+    }
 
-            # LINE Messaging API に返信
-            headers = {
-                "Authorization": f"Bearer {LINE_CHANNEL_ACCESS_TOKEN}",
-                "Content-Type": "application/json"
-            }
+    response = requests.post("https://api.runwayml.com/v1/your-endpoint", json=payload, headers=headers)
+    print("🎬 Runwayからのレスポンス：", response.json())
 
-            payload = {
-                "replyToken": reply_token,
-                "messages": [reply_message]
-            }
-
-            async with httpx.AsyncClient() as client:
-                await client.post(
-                    "https://api.line.me/v2/bot/message/reply",
-                    headers=headers,
-                    json=payload
-                )
-
-    return {"status": "ok"}
+    return JSONResponse(content={"status": "Runway request sent!"})
